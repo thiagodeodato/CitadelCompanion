@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Cidadela do Caos - Gerenciador de Campanhas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .line-through-dim { text-decoration: line-through; opacity: 0.4; }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(0px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(2px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(2px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(0deg); }
+        }
+        .dice-shake { animation: shake 0.15s infinite; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans pb-24">
+
+    <div class="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 shadow-md z-40">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Cidadela do Caos</h1>
+                <p id="nome-jornada-ativa" class="text-xs text-slate-400 italic">Nenhum herói ativo</p>
+            </div>
+            <div class="flex gap-2 text-center scale-90 origin-right">
+                <div class="bg-slate-950 px-2.5 py-1 rounded border border-slate-700">
+                    <span class="block text-[10px] text-slate-400">HAB</span>
+                    <span id="top-hab" class="text-base font-bold text-blue-400">0/0</span>
+                </div>
+                <div class="bg-slate-950 px-2.5 py-1 rounded border border-slate-700">
+                    <span class="block text-[10px] text-slate-400">ENERG</span>
+                    <span id="top-energ" class="text-base font-bold text-emerald-400">0/0</span>
+                </div>
+                <div class="bg-slate-950 px-2.5 py-1 rounded border border-slate-700">
+                    <span class="block text-[10px] text-slate-400">SORTE</span>
+                    <span id="top-sorte" class="text-base font-bold text-amber-400">0/0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+
+        <section id="aba-criacao" class="space-y-4">
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">📜 Carregar Aventura Anterior</h3>
+                <div id="carrossel-herois" class="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-thin"></div>
+            </div>
+
+            <button onclick="mudarAba('arquivo-morto')" class="w-full bg-slate-950 hover:bg-slate-850 border border-slate-700 text-amber-400 text-xs font-bold py-2.5 rounded-lg flex justify-center items-center gap-2">
+                📓 Abrir Arquivo de Relatórios Globais (Filtro Cruzado)
+            </button>
+
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                <h2 class="text-base font-bold text-amber-500 mb-3">✨ Iniciar Nova Campanha</h2>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-[11px] mb-1 text-slate-300">Habilidade (1D6+6):</label>
+                        <input type="number" id="init-hab" value="9" class="w-full bg-slate-950 border border-slate-600 rounded p-1.5 text-center font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] mb-1 text-slate-300">Energia (2D6+12):</label>
+                        <input type="number" id="init-energ" value="20" class="w-full bg-slate-950 border border-slate-600 rounded p-1.5 text-center font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] mb-1 text-slate-300">Sorte (1D6+6):</label>
+                        <input type="number" id="init-sorte" value="9" class="w-full bg-slate-950 border border-slate-600 rounded p-1.5 text-center font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] mb-1 text-purple-300">Magia (2D6+6):</label>
+                        <input type="number" id="init-magia" value="14" oninput="atualizarContadorMagia()" class="w-full bg-slate-950 border border-slate-600 rounded p-1.5 text-center font-bold text-purple-400">
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-700 pt-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-purple-400">Alocar Grimório</span>
+                        <span class="text-[11px] bg-purple-950 px-2 py-0.5 rounded border border-purple-800 font-mono">Disponível: <span id="magias-restantes">14</span></span>
+                    </div>
+                    <div id="lista-compra-magias" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
+                </div>
+
+                <button onclick="iniciarNovaJornada()" class="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded shadow text-xs uppercase tracking-wider">
+                    Convocá Herói para a Cidadela
+                </button>
+            </div>
+        </section>
+
+        <section id="aba-ficha" class="hidden space-y-4">
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 grid grid-cols-3 gap-2">
+                <div class="text-center bg-slate-950 p-2 rounded border border-slate-800">
+                    <span class="text-[10px] text-slate-400 block mb-1">Habilidade</span>
+                    <div class="flex items-center justify-between">
+                        <button onclick="alterarAtributo('hab', -1)" class="bg-slate-800 px-2 rounded font-bold text-blue-400">-</button>
+                        <span id="cur-hab" class="font-bold">0</span>
+                        <button onclick="alterarAtributo('hab', 1)" class="bg-slate-800 px-2 rounded font-bold text-blue-400">+</button>
+                    </div>
+                </div>
+                <div class="text-center bg-slate-950 p-2 rounded border border-slate-800">
+                    <span class="text-[10px] text-slate-400 block mb-1">Energia</span>
+                    <div class="flex items-center justify-between">
+                        <button onclick="alterarAtributo('energ', -1)" class="bg-slate-800 px-2 rounded font-bold text-emerald-400">-</button>
+                        <span id="cur-energ" class="font-bold">0</span>
+                        <button onclick="alterarAtributo('energ', 1)" class="bg-slate-800 px-2 rounded font-bold text-emerald-400">+</button>
+                    </div>
+                </div>
+                <div class="text-center bg-slate-950 p-2 rounded border border-slate-800">
+                    <span class="text-[10px] text-slate-400 block mb-1">Sorte</span>
+                    <div class="flex items-center justify-between">
+                        <button onclick="alterarAtributo('sorte', -1)" class="bg-slate-800 px-2 rounded font-bold text-amber-400">-</button>
+                        <span id="cur-sorte" class="font-bold">0</span>
+                        <button onclick="alterarAtributo('sorte', 1)" class="bg-slate-800 px-2 rounded font-bold text-amber-400">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                <button onclick="toggleElement('painel-monstro')" class="w-full p-3 bg-red-950/40 hover:bg-red-950/60 flex justify-between items-center text-red-400 font-bold text-xs uppercase tracking-wider">
+                    <span>⚔️ Combate Manual (Monstro)</span>
+                    <span id="painel-monstro-indicator">▲ Retrair</span>
+                </button>
+                <div id="painel-monstro" class="p-4 bg-slate-900 border-t border-slate-800 space-y-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center bg-slate-950 p-2 rounded border border-red-900/50">
+                            <span class="text-[10px] text-slate-400 block mb-1">Habilidade Inimigo</span>
+                            <div class="flex items-center justify-between px-2">
+                                <button onclick="alterarMonstro('hab', -1)" class="bg-slate-800 px-2 rounded font-bold text-red-400">-</button>
+                                <input type="number" id="monstro-hab" value="7" class="w-10 bg-transparent text-center font-bold">
+                                <button onclick="alterarMonstro('hab', 1)" class="bg-slate-800 px-2 rounded font-bold text-red-400">+</button>
+                            </div>
+                        </div>
+                        <div class="text-center bg-slate-950 p-2 rounded border border-red-900/50">
+                            <span class="text-[10px] text-slate-400 block mb-1">Energia Inimigo</span>
+                            <div class="flex items-center justify-between px-2">
+                                <button onclick="alterarMonstro('energ', -1)" class="bg-slate-800 px-2 rounded font-bold text-red-400">-</button>
+                                <input type="number" id="monstro-energ" value="8" class="w-10 bg-transparent text-center font-bold">
+                                <button onclick="alterarMonstro('energ', 1)" class="bg-slate-800 px-2 rounded font-bold text-red-400">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-around items-center">
+                    <button onclick="animarEDerDados(1)" class="bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded font-bold text-xs">🎲 1 Dado</button>
+                    <button onclick="animarEDerDados(2)" class="bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded font-bold text-xs">🎲🎲 2 Dados</button>
+                </div>
+                <div id="dice-display-area" class="hidden flex justify-center items-center gap-3 bg-slate-950 p-1.5 rounded border border-slate-700 text-xs">
+                    <div id="dice-container" class="flex gap-2"></div>
+                    <span id="dice-total-box" class="bg-amber-500 text-slate-950 font-bold px-2 rounded">0</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-purple-400 uppercase tracking-wider">Grimório Corrente</h3>
+                    <button onclick="restaurarGrimorioCompleto()" class="text-[10px] bg-purple-950 border border-purple-800 text-purple-300 font-bold px-2 py-0.5 rounded">🔄 Restaurar Tudo</button>
+                </div>
+                <div id="grimorio-jogo" class="grid grid-cols-1 gap-1.5"></div>
+            </div>
+
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Mochila</h3>
+                    <div class="flex gap-2 text-[10px]">
+                        <span class="bg-slate-950 p-1 rounded">💰 Ouro: <input type="number" id="item-ouro" value="0" onchange="salvarSincronizado()" class="w-8 bg-transparent text-center text-amber-400 font-bold"></span>
+                        <span class="bg-slate-950 p-1 rounded">🍖 Prov: <input type="number" id="item-prov" value="2" onchange="salvarSincronizado()" class="w-8 bg-transparent text-center text-emerald-400 font-bold"></span>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="novo-item" placeholder="Item novo..." class="flex-1 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs">
+                    <button onclick="adicionarItem()" class="bg-amber-500 text-slate-950 font-bold px-3 py-1 rounded text-xs">+</button>
+                </div>
+                <ul id="lista-mochila" class="space-y-1 text-xs max-h-36 overflow-y-auto"></ul>
+            </div>
+        </section>
+
+        <section id="aba-diario" class="hidden space-y-4">
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
+                <h3 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Cadastrar Diário Local</h3>
+                <div class="flex gap-2">
+                    <input type="number" id="diario-paragrafo" placeholder="Nº" class="w-14 bg-slate-950 border border-slate-700 rounded p-1.5 text-center font-bold">
+                    <input type="text" id="diario-texto" placeholder="Escolhas ou consequências..." class="flex-1 bg-slate-950 border border-slate-700 rounded p-1.5 text-xs">
+                    <button onclick="adicionarDiario()" class="bg-amber-500 text-slate-950 font-bold px-3 rounded text-xs">Anotar</button>
+                </div>
+                <div id="linha-tempo-diario" class="space-y-2 max-h-80 overflow-y-auto text-xs pt-1"></div>
+            </div>
+        </section>
+
+        <section id="aba-arquivo-morto" class="hidden space-y-4">
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-base font-bold text-amber-400">📓 Relatórios de Todas as Eras</h2>
+                    <button onclick="mudarAba('criacao')" class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">↩ Voltar</button>
+                </div>
+                <p class="text-[11px] text-slate-400">Consulte, expanda ou faça uma pesquisa por palavra ou CAIXA ALTA cruzando todas as linhas do tempo criadas.</p>
+
+                <div class="bg-slate-950 p-2.5 rounded border border-slate-700 space-y-2">
+                    <label class="block text-[10px] font-bold uppercase text-slate-400">Filtro Cruzado Global:</label>
+                    <input type="text" id="filtro-global-txt" placeholder="Pesquise termos ou parágrafos em todas as jornadas..." oninput="renderizarRelatoriosGlobais()" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-xs">
+                    <button id="btn-global-caps" onclick="toggleGlobalCaps()" class="w-full bg-slate-800 text-slate-300 text-xs py-1 rounded border border-slate-700 font-medium">
+                        ⚠️ Filtrar Apenas Trechos em CAIXA ALTA
+                    </button>
+                </div>
+
+                <div id="container-relatorios-globais" class="space-y-3 pt-2"></div>
+            </div>
+
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-2.5">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Sincronia Global (JSON único)</h3>
+                <div class="grid grid-cols-2 gap-2 text-center">
+                    <button onclick="exportarBancoJSON()" class="bg-blue-600 text-white text-xs font-bold py-2 rounded shadow">📥 Exportar Tudo</button>
+                    <label class="bg-teal-600 text-white text-xs font-bold py-2 rounded shadow cursor-pointer block">
+                        📤 Importar Tudo
+                        <input type="file" id="import-file" class="hidden" accept=".json" onchange="importarBancoJSON(event)">
+                    </label>
+                </div>
+                <button onclick="destruirBancoCompleto()" class="w-full bg-red-900/30 border border-red-800 text-red-200 text-[10px] font-bold py-1.5 rounded">
+                    💥 Destruir Banco de Dados Inteiro
+                </button>
+            </div>
+        </section>
+
+        <section id="secao-logs" class="bg-slate-950 border border-slate-800 rounded-lg p-3 h-32 flex flex-col">
+            <span class="text-[9px] uppercase font-bold text-slate-500 mb-1 block">Log de Eventos</span>
+            <div id="log-container" class="text-[11px] font-mono text-slate-400 overflow-y-auto space-y-1 flex-1"></div>
+        </section>
+
+    </main>
+
+    <nav id="menu-navegacao" class="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 py-2 shadow-lg z-50">
+        <div class="max-w-md mx-auto flex justify-around text-center text-xs">
+            <button onclick="mudarAba('criacao')" id="btn-nav-criacao" class="flex flex-col items-center text-amber-500 font-semibold gap-1">
+                <span>🧙‍♂️</span><span>Criação</span>
+            </button>
+            <button onclick="mudarAba('ficha')" id="btn-nav-ficha" class="flex flex-col items-center text-slate-400 gap-1 opacity-50 cursor-not-allowed" disabled>
+                <span>📜</span><span>Ficha</span>
+            </button>
+            <button onclick="mudarAba('diario')" id="btn-nav-diario" class="flex flex-col items-center text-slate-400 gap-1 opacity-50 cursor-not-allowed" disabled>
+                <span>📓</span><span>Diário</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        const MAGIAS_DISPONIVEIS = [
+            { id: "copia", nome: "Duplicar Criatura" },
+            { id: "pes", nome: "P.E.S." },
+            { id: "fogo", nome: "Fogo" },
+            { id: "ilusao", nome: "Ilusão" },
+            { id: "levitacao", nome: "Levitação" },
+            { id: "sorte", nome: "Sorte" },
+            { id: "escudo", nome: "Escudo" },
+            { id: "habilidade", nome: "Habilidade" },
+            { id: "energia", nome: "Energia" },
+            { id: "fraqueza", nome: "Fraqueza" },
+            { id: "forca", nome: "Força" },
+            { id: "ouro", nome: "Ouro de Tolo" }
+        ];
+
+        let bancoDados = { aventuras: {}, idAtiva: null };
+        let tempMagiasCriacao = {};
+        let timeoutsDebounce = {};
+        let historicoValoresIniciaisLog = {};
+        let filtroGlobalCaps = false;
+        let accordionsAbertos = {};
+
+        window.onload = function() {
+            resetarTempMagias();
+            try {
+                if (localStorage.getItem("cidadela_caos_multiverse")) {
+                    bancoDados = JSON.parse(localStorage.getItem("cidadela_caos_multiverse")) || { aventuras: {}, idAtiva: null };
+                    if (!bancoDados.aventuras) bancoDados.aventuras = {};
+                    
+                    for (let key in bancoDados.aventuras) {
+                        let av = bancoDados.aventuras[key];
+                        if (av && av.diario) {
+                            av.diario.forEach((d, idx) => { 
+                                if (!d.id) d.id = "import_" + idx + "_" + d.time;
+                                if (!d.data) d.data = obterDataAtualFormatada(); 
+                            });
+                        }
+                    }
+
+                    if (bancoDados.idAtiva && bancoDados.aventuras[bancoDados.idAtiva]) {
+                        liberarAbasDeJogo();
+                        mudarAba('ficha');
+                    }
+                    adicionarLogGlobal("Banco Multi-Aventuras carregado com sucesso.");
+                }
+            } catch(e) {
+                console.error(e);
+                adicionarLogGlobal("Aviso: Iniciando em modo de segurança.");
+            }
+            atualizarInterfaceCompleta();
+        };
+
+        function resetarTempMagias() {
+            tempMagiasCriacao = {};
+            MAGIAS_DISPONIVEIS.forEach(m => { tempMagiasCriacao[m.id] = { init: 0, cur: 0 }; });
+            renderizarEscolhaMagias();
+        }
+
+        function renderizarEscolhaMagias() {
+            const container = document.getElementById("lista-compra-magias");
+            if (!container) return;
+            container.innerHTML = "";
+            MAGIAS_DISPONIVEIS.forEach(m => {
+                const qtd = tempMagiasCriacao[m.id]?.init || 0;
+                container.innerHTML += `
+                    <div class="flex justify-between items-center bg-slate-950 px-2 py-1 rounded border border-slate-800 text-xs">
+                        <span class="text-slate-300">${m.nome}</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="comprarMagia('${m.id}', -1)" class="bg-slate-800 w-6 h-6 rounded font-bold text-purple-400">-</button>
+                            <span id="buy-qty-${m.id}" class="font-mono font-bold w-4 text-center text-slate-200">${qtd}</span>
+                            <button onclick="comprarMagia('${m.id}', 1)" class="bg-slate-800 w-6 h-6 rounded font-bold text-purple-400">+</button>
+                        </div>
+                    </div>
+                `;
+            });
+            atualizarContadorMagia();
+        }
+
+        function comprarMagia(id, mod) {
+            const maxDisponivel = parseInt(document.getElementById("init-magia").value) || 0;
+            let gasto = 0;
+            MAGIAS_DISPONIVEIS.forEach(m => { gasto += (tempMagiasCriacao[m.id]?.init || 0); });
+
+            if (mod > 0 && gasto >= maxDisponivel) return;
+            if (mod < 0 && (tempMagiasCriacao[id]?.init || 0) <= 0) return;
+
+            if (!tempMagiasCriacao[id]) tempMagiasCriacao[id] = { init: 0, cur: 0 };
+            tempMagiasCriacao[id].init += mod;
+            tempMagiasCriacao[id].cur = tempMagiasCriacao[id].init;
+            
+            document.getElementById(`buy-qty-${id}`).innerText = tempMagiasCriacao[id].init;
+            atualizarContadorMagia();
+        }
+
+        function atualizarContadorMagia() {
+            const maxDisponivel = parseInt(document.getElementById("init-magia").value) || 0;
+            let gasto = 0;
+            MAGIAS_DISPONIVEIS.forEach(m => { gasto += (tempMagiasCriacao[m.id]?.init || 0); });
+            const resto = maxDisponivel - gasto;
+            const containerResto = document.getElementById("magias-restantes");
+            if (containerResto) containerResto.innerText = resto < 0 ? 0 : resto;
+        }
+
+        function iniciarNovaJornada() {
+            const idNova = Date.now().toString();
+            const hab = parseInt(document.getElementById("init-hab").value) || 6;
+            const energ = parseInt(document.getElementById("init-energ").value) || 12;
+            const sorte = parseInt(document.getElementById("init-sorte").value) || 6;
+            const magMax = parseInt(document.getElementById("init-magia").value) || 0;
+
+            bancoDados.aventuras[idNova] = {
+                id: idNova,
+                dataCriacao: obterDataAtualFormatada(),
+                ativa: true,
+                init: { hab, energ, sorte, magiaMax: magMax },
+                cur: { hab, energ, sorte },
+                magias: JSON.parse(JSON.stringify(tempMagiasCriacao)),
+                mochila: [],
+                ouro: 0,
+                provisoes: 2,
+                diario: [],
+                logs: [`[${new Date().toLocaleTimeString()}] Herói convocado para os portões.`]
+            };
+
+            bancoDados.idAtiva = idNova;
+            resetarTempMagias();
+            liberarAbasDeJogo();
+            atualizarInterfaceCompleta();
+            mudarAba('ficha');
+            adicionarLogGlobal(`Nova jornada registrada sob ID: ${idNova}`);
+            salvarEmDisco();
+        }
+
+        function carregarAventuraAntiga(id) {
+            if(bancoDados.aventuras && bancoDados.aventuras[id]) {
+                bancoDados.idAtiva = id;
+                liberarAbasDeJogo();
+                atualizarInterfaceCompleta();
+                mudarAba('ficha');
+                adicionarLogGlobal(`Campanha carregada para o presente.`);
+                salvarEmDisco();
+            }
+        }
+
+        function obterAventuraAtiva() {
+            if(!bancoDados.aventuras || !bancoDados.idAtiva) return null;
+            return bancoDados.aventuras[bancoDados.idAtiva] || null;
+        }
+
+        function liberarAbasDeJogo() {
+            document.getElementById("btn-nav-ficha").disabled = false;
+            document.getElementById("btn-nav-ficha").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("btn-nav-diario").disabled = false;
+            document.getElementById("btn-nav-diario").classList.remove("opacity-50", "cursor-not-allowed");
+        }
+
+        function atualizarInterfaceCompleta() {
+            renderizarCarrosselHerois();
+            renderizarRelatoriosGlobais();
+            
+            const ativa = obterAventuraAtiva();
+            if (!ativa) {
+                document.getElementById("nome-jornada-ativa").innerText = "Nenhum herói ativo";
+                return;
+            }
+
+            document.getElementById("nome-jornada-ativa").innerText = `Campanha de ${ativa.dataCriacao || ''} (H:${ativa.init?.hab || 0} E:${ativa.init?.energ || 0})`;
+            document.getElementById("top-hab").innerText = `${ativa.cur?.hab || 0}/${ativa.init?.hab || 0}`;
+            document.getElementById("top-energ").innerText = `${ativa.cur?.energ || 0}/${ativa.init?.energ || 0}`;
+            document.getElementById("top-sorte").innerText = `${ativa.cur?.sorte || 0}/${ativa.init?.sorte || 0}`;
+
+            document.getElementById("cur-hab").innerText = ativa.cur?.hab || 0;
+            document.getElementById("cur-energ").innerText = ativa.cur?.energ || 0;
+            document.getElementById("cur-sorte").innerText = ativa.cur?.sorte || 0;
+
+            document.getElementById("item-ouro").value = ativa.ouro || 0;
+            document.getElementById("item-prov").value = ativa.provisoes || 0;
+
+            renderizarGrimorioJogo();
+            renderizarMochila();
+            renderizarDiarioLocal();
+            renderizarLogs();
+        }
+
+        function renderizarCarrosselHerois() {
+            const container = document.getElementById("carrossel-herois");
+            if (!container) return;
+            container.innerHTML = "";
+            if (!bancoDados.aventuras) return;
+            const chaves = Object.keys(bancoDados.aventuras).sort().reverse();
+            if(chaves.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic py-2">Nenhum registro histórico local.</p>`;
+                return;
+            }
+
+            chaves.forEach(k => {
+                const av = bancoDados.aventuras[k];
+                if (!av) return;
+                const isSelected = k === bancoDados.idAtiva;
+                const borda = isSelected ? "border-amber-500 bg-slate-950" : "border-slate-700 bg-slate-900";
+                
+                container.innerHTML += `
+                    <div onclick="carregarAventuraAntiga('${av.id}')" class="flex-shrink-0 w-36 p-2 rounded border cursor-pointer transition-all ${borda}">
+                        <div class="text-[10px] text-amber-400 font-bold flex justify-between">
+                            <span>📅 ${av.dataCriacao || 'S/D'}</span>
+                            ${isSelected ? '<span>🟢</span>' : ''}
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-300 mt-1 space-y-0.5">
+                            <p>HAB: <span class="text-blue-400 font-bold">${av.cur?.hab || 0}/${av.init?.hab || 0}</span></p>
+                            <p>ENE: <span class="text-emerald-400 font-bold">${av.cur?.energ || 0}/${av.init?.energ || 0}</span></p>
+                            <p>SOR: <span class="text-amber-400 font-bold">${av.cur?.sorte || 0}/${av.init?.sorte || 0}</span></p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderizarGrimorioJogo() {
+            const ativa = obterAventuraAtiva();
+            const container = document.getElementById("grimorio-jogo");
+            if(!container || !ativa || !ativa.magias) return;
+            container.innerHTML = "";
+
+            MAGIAS_DISPONIVEIS.forEach(m => {
+                const info = ativa.magias[m.id];
+                if (info && info.init > 0) {
+                    const isEsgotado = info.cur <= 0;
+                    const classeRiscado = isEsgotado ? "line-through-dim bg-slate-950 border-slate-900" : "bg-slate-950 border-purple-950";
+                    
+                    container.innerHTML += `
+                        <div class="flex justify-between items-center p-2 rounded border text-xs ${classeRiscado}">
+                            <span class="${isEsgotado ? 'text-slate-500' : 'text-slate-200 font-medium'}">${m.nome}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="font-mono text-purple-400 font-bold">${info.cur} / ${info.init}</span>
+                                <button onclick="gastarMagia('${m.id}')" ${isEsgotado ? 'disabled' : ''} class="bg-purple-900/40 border border-purple-700 text-purple-200 font-bold px-2 py-0.5 rounded text-[10px] disabled:opacity-0">Usar</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function gastarMagia(id) {
+            const ativa = obterAventuraAtiva();
+            if (ativa && ativa.magias && ativa.magias[id] && ativa.magias[id].cur > 0) {
+                ativa.magias[id].cur--;
+                const mNome = MAGIAS_DISPONIVEIS.find(m => m.id === id).nome;
+                adicionarLogGlobal(`Feitiço de [${mNome}] conjurado. Carga: ${ativa.magias[id].cur}/${ativa.magias[id].init}`);
+                atualizarInterfaceCompleta();
+                salvarEmDisco();
+            }
+        }
+
+        function restaurarGrimorioCompleto() {
+            const ativa = obterAventuraAtiva();
+            if(ativa && ativa.magias && confirm("Deseja restaurar seu grimório aos valores iniciais?")) {
+                MAGIAS_DISPONIVEIS.forEach(m => {
+                    if (ativa.magias[m.id]) ativa.magias[m.id].cur = ativa.magias[m.id].init;
+                });
+                adicionarLogGlobal("✨ Grimório recarregado plenamente.");
+                atualizarInterfaceCompleta();
+                salvarEmDisco();
+            }
+        }
+
+        function alterarAtributo(attr, mod) {
+            const ativa = obterAventuraAtiva();
+            if(!ativa || !ativa.cur) return;
+
+            if (!timeoutsDebounce[attr]) historicoValoresIniciaisLog[attr] = ativa.cur[attr];
+
+            ativa.cur[attr] += mod;
+            if (ativa.cur[attr] > ativa.init[attr]) ativa.cur[attr] = ativa.init[attr];
+            if (ativa.cur[attr] < 0) ativa.cur[attr] = 0;
+
+            document.getElementById(`cur-${attr}`).innerText = ativa.cur[attr];
+            document.getElementById(`top-${attr}`).innerText = `${ativa.cur[attr]}/${ativa.init[attr]}`;
+
+            clearTimeout(timeoutsDebounce[attr]);
+            timeoutsDebounce[attr] = setTimeout(() => {
+                const vOrig = historicoValoresIniciaisLog[attr];
+                const vFim = ativa.cur[attr];
+                if (vOrig !== vFim) {
+                    const nomes = { hab: "Habilidade", energ: "Energia", sorte: "Sorte" };
+                    adicionarLogGlobal(`${nomes[attr]} alterada de ${vOrig} para ${vFim}.`);
+                }
+                delete timeoutsDebounce[attr];
+                delete historicoValoresIniciaisLog[attr];
+                salvarEmDisco();
+            }, 1000);
+        }
+
+        function alterarMonstro(campo, mod) {
+            const input = document.getElementById(`monstro-${campo}`);
+            if(!input) return;
+            let val = parseInt(input.value) || 0;
+            val += mod;
+            if (val < 0) val = 0;
+            input.value = val;
+            adicionarLogGlobal(`[Combate] ${campo === 'hab' ? 'Habilidade' : 'Energia'} do oponente alterada para ${val}`);
+        }
+
+        function animarEDerDados(qtd) {
+            const area = document.getElementById("dice-display-area");
+            const container = document.getElementById("dice-container");
+            const box = document.getElementById("dice-total-box");
+            if(!area || !container || !box) return;
+            area.classList.remove("hidden");
+            box.innerText = "...";
+
+            let t = 0;
+            const anim = setInterval(() => {
+                container.innerHTML = "";
+                for(let i=0; i<qtd; i++) {
+                    container.innerHTML += `<div class="w-7 h-7 bg-slate-800 text-amber-400 font-bold border border-amber-500 rounded flex justify-center items-center dice-shake">${Math.floor(Math.random()*6)+1}</div>`;
+                }
+                if(++t > 4) {
+                    clearInterval(anim);
+                    let tot = 0; let res = []; container.innerHTML = "";
+                    for(let i=0; i<qtd; i++) {
+                        let d = Math.floor(Math.random()*6)+1; res.push(d); tot += d;
+                        container.innerHTML += `<div class="w-7 h-7 bg-amber-500 text-slate-950 font-extrabold rounded flex justify-center items-center shadow-inner">${d}</div>`;
+                    }
+                    box.innerText = tot;
+                    adicionarLogGlobal("🎲 Rolagem manual executada (" + qtd + "D6). Resultados: [" + res.join("+") + "] = " + tot);
+                }
+            }, 100);
+        }
+
+        function adicionarItem() {
+            const ativa = obterAventuraAtiva();
+            const input = document.getElementById("novo-item");
+            if(!input) return;
+            const nome = input.value.trim();
+            if (ativa && nome) {
+                if(!ativa.mochila) ativa.mochila = [];
+                ativa.mochila.push({ id: Date.now(), nome, riscado: false });
+                input.value = "";
+                adicionarLogGlobal(`Mochila recebendo: "${nome}"`);
+                atualizarInterfaceCompleta();
+                salvarEmDisco();
+            }
+        }
+
+        function toggleRiscoItem(id) {
+            const ativa = obterAventuraAtiva();
+            if (!ativa || !ativa.mochila) return;
+            const item = ativa.mochila.find(i => i.id === id);
+            if (item) {
+                item.riscado = !item.riscado;
+                adicionarLogGlobal(`Item "${item.nome}" foi alterado no histórico da mochila.`);
+                atualizarInterfaceCompleta();
+                salvarEmDisco();
+            }
+        }
+
+        function renderizarMochila() {
+            const ativa = obterAventuraAtiva();
+            const lista = document.getElementById("lista-mochila");
+            if(!lista) return;
+            lista.innerHTML = "";
+            if(!ativa) return;
+
+            if(ativa.mochila) {
+                ativa.mochila.forEach(item => {
+                    const classe = item.riscado ? "line-through text-slate-500 italic opacity-50" : "text-slate-300";
+                    lista.innerHTML += `
+                        <li class="flex justify-between items-center bg-slate-950 p-1 rounded border border-slate-800 text-xs">
+                            <span class="${classe}">${item.nome}</span>
+                            <button onclick="toggleRiscoItem(${item.id})" class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">Risco</button>
+                        </li>
+                    `;
+                });
+            }
+            ativa.ouro = parseInt(document.getElementById("item-ouro").value) || 0;
+            ativa.provisoes = parseInt(document.getElementById("item-prov").value) || 0;
+        }
+
+        function adicionarDiario() {
+            const ativa = obterAventuraAtiva();
+            const inpP = document.getElementById("diario-paragrafo");
+            const inpT = document.getElementById("diario-texto");
+            if (ativa && inpP && inpT && inpP.value && inpT.value) {
+                if(!ativa.diario) ativa.diario = [];
+                ativa.diario.push({
+                    id: "local_" + Date.now(), 
+                    paragrafo: inpP.value.trim(),
+                    texto: inpT.value.trim(),
+                    data: obterDataAtualFormatada(),
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+                adicionarLogGlobal(`Diário Atualizado: Seção [${inpP.value}] arquivada.`);
+                inpP.value = ""; inpT.value = "";
+                atualizarInterfaceCompleta();
+                salvarEmDisco();
+            }
+        }
+
+        function editarNotaDiario(idNota) {
+            const ativa = obterAventuraAtiva();
+            if (!ativa || !ativa.diario) return;
+            const nota = ativa.diario.find(d => d.id === idNota || d.id === String(idNota));
+            
+            if (nota) {
+                const novoTexto = prompt("✏️ Edite o relato do parágrafo " + nota.paragrafo + ":", nota.texto);
+                if (novoTexto !== null && novoTexto.trim() !== "") {
+                    nota.texto = novoTexto.trim();
+                    adicionarLogGlobal(`Parágrafo [${nota.paragrafo}] editado.`);
+                    atualizarInterfaceCompleta();
+                    salvarEmDisco();
+                }
+            }
+        }
+
+        function apagarNotaDiario(idNota) {
+            const ativa = obterAventuraAtiva();
+            if (!ativa || !ativa.diario) return;
+            
+            const index = ativa.diario.findIndex(d => d.id === idNota || d.id === String(idNota));
+            if (index !== -1) {
+                const pNum = ativa.diario[index].paragrafo;
+                if (confirm("❌ Deseja apagar permanentemente o relato do parágrafo [" + pNum + "]?")) {
+                    ativa.diario.splice(index, 1);
+                    adicionarLogGlobal(`Parágrafo [${pNum}] removido.`);
+                    atualizarInterfaceCompleta();
+                    salvarEmDisco();
+                }
+            }
+        }
+
+        function renderizarDiarioLocal() {
+            const ativa = obterAventuraAtiva();
+            const container = document.getElementById("linha-tempo-diario");
+            if(!container) return;
+            container.innerHTML = "";
+            if (!ativa || !ativa.diario || ativa.diario.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-2">Sua linha do tempo local está limpa.</p>`;
+                return;
+            }
+            [...ativa.diario].reverse().forEach(d => {
+                container.innerHTML += `
+                    <div class="bg-slate-950 p-1.5 rounded border border-slate-800 flex items-start justify-between gap-1.5">
+                        <div class="flex items-start gap-1.5 flex-1">
+                            <span class="bg-amber-950 text-amber-400 px-1 rounded font-bold font-mono">§ ${d.paragrafo}</span>
+                            <div class="flex-1">
+                                <p class="text-slate-300">${d.texto}</p>
+                                <span class="text-[9px] text-slate-500 block">${d.data} às ${d.time}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 ml-1 flex-shrink-0">
+                            <button onclick="editarNotaDiario('${d.id}')" class="text-[11px] bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded text-blue-300">✏️</button>
+                            <button onclick="apagarNotaDiario('${d.id}')" class="text-[11px] bg-slate-800 hover:bg-red-950 px-1.5 py-0.5 rounded text-red-400">❌</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function toggleGlobalCaps() {
+            filtroGlobalCaps = !filtroGlobalCaps;
+            const btn = document.getElementById("btn-global-caps");
+            if(!btn) return;
+            if(filtroGlobalCaps) {
+                btn.className = "w-full bg-amber-500 text-slate-950 text-xs py-1 rounded border border-amber-600 font-bold";
+            } else {
+                btn.className = "w-full bg-slate-800 text-slate-300 text-xs py-1 rounded border border-slate-700 font-medium";
+            }
+            renderizarRelatoriosGlobais();
+        }
+
+        function toggleAccordion(id) {
+            accordionsAbertos[id] = !accordionsAbertos[id];
+            renderizarRelatoriosGlobais();
+        }
+
+        function renderizarRelatoriosGlobais() {
+            const container = document.getElementById("container-relatorios-globais");
+            if (!container) return;
+            container.innerHTML = "";
+
+            if (!bancoDados.aventuras) return;
+            const termo = document.getElementById("filtro-global-txt")?.value.toLowerCase() || "";
+            const chaves = Object.keys(bancoDados.aventuras).sort().reverse();
+
+            if (chaves.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-4">Nenhum registro histórico indexado.</p>`;
+                return;
+            }
+
+            chaves.forEach(k => {
+                const av = bancoDados.aventuras[k];
+                if (!av) return;
+                
+                let paginasFiltradas = av.diario ? [...av.diario] : [];
+                
+                if (termo) {
+                    paginasFiltradas = paginasFiltradas.filter(d => 
+                        d.paragrafo.toString().includes(termo) || 
+                        d.texto.toLowerCase().includes(termo)
+                    );
+                }
+                
+                if (filtroGlobalCaps) {
+                    const rCaps = /\b[A-ZÀ-Ú]{2,}\b/;
+                    paginasFiltradas = paginasFiltradas.filter(d => rCaps.test(d.texto));
+                }
+
+                if ((termo || filtroGlobalCaps) && paginasFiltradas.length === 0) return;
+
+                const isOpen = accordionsAbertos[k] || false;
+                
+                let htmlAcordeon = `
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+                        <button onclick="toggleAccordion('${av.id}')" class="w-full text-left p-2.5 bg-slate-900 hover:bg-slate-850 flex justify-between items-center text-xs">
+                            <div class="font-mono text-slate-300">
+                                <span class="text-amber-400 font-bold">📅 ${av.dataCriacao || 'S/D'}</span> 
+                                <span class="opacity-50">|</span> H:${av.init?.hab || 0} E:${av.init?.energ || 0}
+                                <span class="ml-2 text-[10px] bg-slate-800 px-1 text-slate-400 rounded">(${paginasFiltradas.length} notas)</span>
+                            </div>
+                            <span class="text-slate-400 font-bold">${isOpen ? '▼' : '►'}</span>
+                        </button>
+                        <div class="${isOpen ? 'block p-2 space-y-1.5 border-t border-slate-900 bg-slate-950/50' : 'hidden'}">
+                `;
+
+                if (paginasFiltradas.length === 0) {
+                    htmlAcordeon += `<p class="text-[11px] text-slate-600 italic text-center p-1">Nenhum relato encontrado.</p>`;
+                } else {
+                    paginasFiltradas.forEach(p => {
+                        htmlAcordeon += `
+                            <div class="bg-slate-900/50 p-1.5 rounded border border-slate-850 text-[11px] flex items-start gap-1.5">
+                                <span class="bg-slate-800 text-amber-400 px-1 rounded font-mono font-bold">§${p.paragrafo}</span>
+                                <div class="flex-1">
+                                    <p class="text-slate-300">${p.texto}</p>
+                                    <span class="text-[8px] text-slate-600 block text-right">${p.data} às ${p.time}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                htmlAcordeon += `</div></div>`;
+                container.innerHTML += htmlAcordeon;
+            });
+        }
+
+        function adicionarLogGlobal(msg) {
+            const ativa = obterAventuraAtiva();
+            const logMsg = `[${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}] ${msg}`;
+            
+            if (ativa) {
+                if(!ativa.logs) ativa.logs = [];
+                ativa.logs.push(logMsg);
+                if (ativa.logs.length > 30) ativa.logs.shift();
+            }
+            
+            const container = document.getElementById("log-container");
+            if (container) {
+                container.innerHTML = `<div>${logMsg}</div>` + container.innerHTML;
+            }
+        }
+
+        function renderizarLogs() {
+            const ativa = obterAventuraAtiva();
+            const container = document.getElementById("log-container");
+            if (!container) return;
+            container.innerHTML = "";
+            
+            const logsExibicao = (ativa && ativa.logs) ? ativa.logs : [`[Sistema] Arquivo pronto.`];
+            [...logsExibicao].reverse().forEach(l => {
+                container.innerHTML += `<div>${l}</div>`;
+            });
+        }
+
+        function mudarAba(nome) {
+            ['criacao', 'ficha', 'diario', 'arquivo-morto'].forEach(a => {
+                const el = document.getElementById(`aba-${a}`);
+                if (el) el.classList.add('hidden');
+                const btn = document.getElementById(`btn-nav-${a}`);
+                if (btn) btn.classList.remove('text-amber-500', 'font-semibold');
+            });
+            const abaAlvo = document.getElementById(`aba-${nome}`);
+            if(abaAlvo) abaAlvo.classList.remove('hidden');
+            
+            const btnAtivo = document.getElementById(`btn-nav-${nome}`);
+            if (btnAtivo) btnAtivo.classList.add('text-amber-500', 'font-semibold');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleElement(id) {
+            const el = document.getElementById(id);
+            const ind = document.getElementById(`${id}-indicator`);
+            if(!el || !ind) return;
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                ind.innerText = "▲ Retrair";
+            } else {
+                el.classList.add('hidden');
+                ind.innerText = "▼ Expandir";
+            }
+        }
+
+        function obterDataAtualFormatada() {
+            const agora = new Date();
+            const dia = String(agora.getDate()).padStart(2, '0');
+            const mes = String(agora.getMonth() + 1).padStart(2, '0');
+            return `${dia}-${mes}-26`;
+        }
+
+        function salvarEmDisco() {
+            localStorage.setItem("cidadela_caos_multiverse", JSON.stringify(bancoDados));
+        }
+
+        function salvarSincronizado() {
+            const ativa = obterAventuraAtiva();
+            if(ativa) {
+                ativa.ouro = parseInt(document.getElementById("item-ouro").value) || 0;
+                ativa.provisoes = parseInt(document.getElementById("item-prov").value) || 0;
+                salvarEmDisco();
+            }
+        }
+
+        function destruirBancoCompleto() {
+            if(confirm("💥 ATENÇÃO: Deseja redefinir todo o banco do app?")) {
+                localStorage.removeItem("cidadela_caos_multiverse");
+                location.reload();
+            }
+        }
+
+        function exportarBancoJSON() {
+            const agora = new Date();
+            const f = (v) => String(v).padStart(2, '0');
+            const nomeStr = `backupcidadela-${agora.getFullYear()}-${f(agora.getMonth()+1)}-${f(agora.getDate())}-${f(agora.getHours())}-${f(agora.getMinutes())}-${f(agora.getSeconds())}.json`;
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bancoDados, null, 2));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", nomeStr);
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+        }
+
+        function importarBancoJSON(event) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    
+                    if (parsed && parsed.aventuras) {
+                        bancoDados = parsed;
+                    } else if (parsed && parsed.init && parsed.cur) {
+                        const autoId = Date.now().toString();
+                        bancoDados.aventuras = {};
+                        bancoDados.aventuras[autoId] = parsed;
+                        bancoDados.aventuras[autoId].id = autoId;
+                        bancoDados.idAtiva = autoId;
+                    } else {
+                        throw new Error("Formato inválido.");
+                    }
+
+                    for (let key in bancoDados.aventuras) {
+                        let av = bancoDados.aventuras[key];
+                        if (av) {
+                            if (!av.diario) av.diario = [];
+                            if (!av.magias) av.magias = {};
+                            if (!av.mochila) av.mochila = [];
+                            if (!av.dataCriacao) av.dataCriacao = obterDataAtualFormatada();
+                            
+                            av.diario.forEach((d, index) => { 
+                                if (!d.id) d.id = "import_" + index + "_" + Date.now();
+                                if (!d.data) d.data = obterDataAtualFormatada(); 
+                            });
+                        }
+                    }
+
+                    salvarEmDisco();
+                    if (bancoDados.idAtiva && bancoDados.aventuras[bancoDados.idAtiva]) liberarAbasDeJogo();
+                    atualizarInterfaceCompleta();
+                    mudarAba('criacao');
+                    adicionarLogGlobal("Sucesso: Backup integrado perfeitamente!");
+                } catch (err) {
+                    const errTime = new Date().toLocaleTimeString();
+                    const msgErro = `[Erro Crítico - ${errTime}] Falha de Importação.`;
+                    const container = document.getElementById("log-container");
+                    if (container) {
+                        container.innerHTML = `<div class="text-red-400 font-bold font-mono">${msgErro}</div>` + container.innerHTML;
+                    }
+                    alert("Erro estrutural no JSON.");
+                }
+            };
+            reader.readAsText(event.target.files[0]);
+        }
+    </script>
+</body>
+</html>
