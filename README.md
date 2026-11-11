@@ -44,7 +44,8 @@ This project is a 100% client-side, zero-dependency **single HTML file** running
 ---
 
 ## Getting Started
-
+* Use it Online: https://thiagodeodato.github.io/CitadelCompanion/
+* Or Download it!
 1. Download or save `index.html` to your phone or computer.
 2. Open the file in any modern web browser (Google Chrome, Safari, Firefox).
 3. Roll your attributes, choose your spells, and enter the gates of the Citadel!
